@@ -1,0 +1,536 @@
+<!-- Filename: index.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng: Nhận biết protein bằng phép thử biuret</title>
+    <style>
+        :root {
+            /* --- BẢNG MÀU HÓA CHẤT --- */
+            /* NaOH: Trong suốt (hơi xám nhẹ để thấy được mức nước) */
+            --chem-naoh: rgba(236, 240, 241, 0.6); 
+            /* Albumin: Trắng đục */
+            --chem-albumin: #ecf0f1;               
+            /* Hỗn hợp NaOH + Albumin: Trắng đục sáng */
+            --chem-mix-1: #e2e7e9;                 
+            /* CuSO4: Xanh lam tươi */
+            --chem-cuso4: #00d2ff;                 
+            /* Kết quả phản ứng: Tím đặc trưng */
+            --chem-final: #9b59b6;                 
+            
+            /* --- MÀU GIAO DIỆN --- */
+            --sidebar-bg: #f5f6fa;
+            --stage-bg-grad-1: #34495e;
+            --stage-bg-grad-2: #2c3e50;
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --text-color: #2c3e50;
+            --accent-color: #3498db;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #dcdde1;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* KHUNG CHÍNH */
+        .container {
+            display: flex;
+            width: 1100px;
+            height: 650px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        /* --- CỘT TRÁI: ĐIỀU KHIỂN & QUY TRÌNH --- */
+        .sidebar {
+            width: 350px;
+            background: var(--sidebar-bg);
+            padding: 30px;
+            border-right: 1px solid #dcdde1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            color: var(--text-color);
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 15px;
+            font-size: 1.4rem;
+            margin-top: 0;
+            line-height: 1.4;
+        }
+
+        /* Danh sách các bước */
+        .step-list {
+            flex-grow: 1;
+            margin-bottom: 20px;
+        }
+
+        .step-item {
+            background: #fff;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+        }
+
+        .step-item strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
+
+        /* Trạng thái bước đang kích hoạt */
+        .step-item.active {
+            border-left: 5px solid #2ecc71;
+            background: #eafaf1;
+            color: var(--text-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            font-weight: 500;
+            transform: translateX(5px);
+        }
+
+        /* Khu vực nút bấm */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-top: 20px;
+            border-top: 1px solid #dcdde1;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 12px;
+            text-align: left;
+            font-size: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-action {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        .btn-action:hover { background-color: #2980b9; transform: translateY(-2px); }
+        .btn-action:active { transform: scale(0.98); }
+        
+        .btn-action:disabled { 
+            background-color: #bdc3c7; 
+            cursor: not-allowed; 
+            opacity: 0.7; 
+            transform: none; 
+            box-shadow: none;
+        }
+
+        .btn-reset {
+            background-color: white;
+            color: #e74c3c;
+            border: 2px solid #e74c3c;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .btn-reset:hover { background-color: #e74c3c; color: white; }
+
+        /* --- CỘT PHẢI: SÂN KHẤU THÍ NGHIỆM --- */
+        .stage {
+            flex: 1;
+            background: radial-gradient(circle at center, var(--stage-bg-grad-1) 0%, var(--stage-bg-grad-2) 100%);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 60px;
+            overflow: hidden; /* Ẩn phần thừa của pipet */
+        }
+
+        /* Badge thông báo trạng thái */
+        .status-badge {
+            position: absolute;
+            top: 40px;
+            background: rgba(0,0,0,0.75);
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            font-size: 1.1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+            max-width: 80%;
+            z-index: 100;
+        }
+
+        /* ỐNG NGHIỆM */
+        .test-tube {
+            width: 100px;
+            height: 380px;
+            /* Tạo hiệu ứng thủy tinh */
+            border-left: 3px solid var(--glass-border);
+            border-right: 3px solid var(--glass-border);
+            border-bottom: 8px solid var(--glass-border);
+            border-radius: 0 0 50px 50px;
+            background: rgba(255, 255, 255, 0.05); /* Thủy tinh mờ */
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        }
+
+        /* Hiệu ứng phản chiếu ánh sáng trên ống nghiệm */
+        .test-tube::before {
+            content: '';
+            position: absolute;
+            top: 5%; left: 10%;
+            width: 10px; height: 85%;
+            background: rgba(255,255,255,0.15);
+            border-radius: 5px;
+            filter: blur(3px);
+            z-index: 12;
+        }
+
+        /* DUNG DỊCH TRONG ỐNG */
+        .liquid {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%; /* Mặc định rỗng */
+            background-color: var(--chem-naoh);
+            transition: height 0.8s ease-out, background-color 1.5s ease;
+            z-index: 5;
+        }
+        
+        /* Bề mặt thoáng của chất lỏng (Meniscus) */
+        .liquid::after {
+            content: '';
+            position: absolute;
+            top: -7px; left: 0;
+            width: 100%; height: 14px;
+            border-radius: 50%;
+            background-color: inherit;
+            filter: brightness(1.2); /* Sáng hơn chút ở bề mặt */
+            opacity: 0.9;
+        }
+
+        /* PIPETTE (Ống hút nhỏ giọt) */
+        .pipette-container {
+            position: absolute;
+            top: -250px; /* Vị trí ẩn ban đầu */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 220px;
+            z-index: 20;
+            transition: top 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+        
+        /* Vẽ pipette bằng SVG để sắc nét */
+        .pipette-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.4));
+        }
+
+        /* GIỌT NƯỚC RƠI */
+        .drop {
+            width: 14px;
+            height: 20px;
+            /* Hình dáng giọt nước */
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            position: absolute;
+            left: 50%;
+            top: 100%; /* Xuất phát từ đầu pipet */
+            transform: translateX(-50%);
+            opacity: 0;
+            z-index: 6;
+        }
+
+        /* Animation rơi */
+        .drop-animation {
+            animation: dropFall 0.5s linear forwards;
+        }
+
+        @keyframes dropFall {
+            0% { 
+                top: 200px; /* Vị trí đầu kim pipet */
+                opacity: 1; 
+                transform: translateX(-50%) scale(0.6); 
+            }
+            100% { 
+                top: 450px; /* Rơi xuống đáy/mặt nước */
+                opacity: 1; 
+                transform: translateX(-50%) scale(1); 
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- CỘT TRÁI: ĐIỀU KHIỂN -->
+    <div class="sidebar">
+        <div>
+            <h2>Nhận biết protein bằng phép thử biuret</h2>
+            
+            <div class="step-list">
+                <div id="step1a" class="step-item active">
+                    <strong>Bước 1.1:</strong> Cho 5 ml dung dịch NaOH loãng vào ống nghiệm (Tạo môi trường kiềm).
+                </div>
+                <div id="step1b" class="step-item">
+                    <strong>Bước 1.2:</strong> Nhỏ một ít dung dịch Albumin 1% hoặc lòng trắng trứng.
+                </div>
+                <div id="step2" class="step-item">
+                    <strong>Bước 2:</strong> Thêm 5 ml dung dịch CuSO₄ 1% vào hỗn hợp.
+                </div>
+                <div id="step3" class="step-item">
+                    <strong>Bước 3:</strong> Quan sát sự thay đổi màu sắc của dung dịch sau phản ứng.
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="btn-1a" class="btn-action" onclick="runStep1a()">
+                🧪 1a. Nhỏ NaOH (Trong suốt)
+            </button>
+            <button id="btn-1b" class="btn-action" onclick="runStep1b()" disabled>
+                🥚 1b. Nhỏ Albumin (Đục)
+            </button>
+            <button id="btn-2" class="btn-action" onclick="runStep2()" disabled>
+                💧 2. Nhỏ CuSO₄ (Xanh)
+            </button>
+            <button class="btn-reset" onclick="resetExp()">
+                🔄 Làm lại thí nghiệm
+            </button>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: SÂN KHẤU -->
+    <div class="stage">
+        <!-- Thông báo trạng thái -->
+        <div id="status" class="status-badge">Sẵn sàng thí nghiệm</div>
+
+        <!-- PIPETTE SVG -->
+        <div class="pipette-container" id="pipette">
+            <svg class="pipette-svg" viewBox="0 0 60 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Phần bóp cao su màu đỏ -->
+                <path d="M15 40 C15 10, 45 10, 45 40 L40 50 L20 50 Z" fill="#e74c3c" />
+                <!-- Thân ống thủy tinh -->
+                <rect x="22" y="50" width="16" height="100" fill="rgba(255,255,255,0.85)" stroke="#bdc3c7" stroke-width="1"/>
+                <!-- Đầu kim -->
+                <path d="M22 150 L30 170 L38 150 Z" fill="rgba(255,255,255,0.85)" stroke="#bdc3c7" stroke-width="1"/>
+                
+                <!-- Chất lỏng bên trong Pipette (Thay đổi màu bằng JS) -->
+                <rect id="pipette-liquid" x="24" y="80" width="12" height="60" fill="#ccc" rx="2" />
+                <path id="pipette-tip-color" d="M24 140 L30 165 L36 140 Z" fill="#ccc" />
+            </svg>
+        </div>
+
+        <!-- Vùng chứa các giọt nước rơi (được tạo bởi JS) -->
+        <div id="drop-zone"></div>
+
+        <!-- Ống nghiệm -->
+        <div class="test-tube">
+            <div class="liquid" id="liquid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- MÃ JAVA SCRIPT ĐIỀU KHIỂN -->
+<script>
+    // --- 1. KHAI BÁO CÁC PHẦN TỬ DOM ---
+    const liquid = document.getElementById('liquid');
+    const pipette = document.getElementById('pipette');
+    const pipetteLiquid = document.getElementById('pipette-liquid');
+    const pipetteTip = document.getElementById('pipette-tip-color');
+    const statusText = document.getElementById('status');
+    const dropZone = document.getElementById('drop-zone');
+
+    // Nút điều khiển
+    const btn1a = document.getElementById('btn-1a');
+    const btn1b = document.getElementById('btn-1b');
+    const btn2 = document.getElementById('btn-2');
+
+    // Các bước hướng dẫn
+    const steps = {
+        '1a': document.getElementById('step1a'),
+        '1b': document.getElementById('step1b'),
+        '2': document.getElementById('step2'),
+        '3': document.getElementById('step3')
+    };
+
+    // --- 2. HÀM HỖ TRỢ ---
+
+    // Hàm đổi highlight bước đang thực hiện
+    function setStepActive(id) {
+        Object.values(steps).forEach(el => el.classList.remove('active'));
+        steps[id].classList.add('active');
+    }
+
+    // Hàm điều khiển Pipette và nhỏ giọt
+    function usePipette(pipetteColor, targetHeight, tubeColor, callback) {
+        // A. Nạp hóa chất vào Pipette
+        pipetteLiquid.style.fill = pipetteColor;
+        pipetteTip.style.fill = pipetteColor;
+
+        // B. Di chuyển Pipette xuống miệng ống nghiệm
+        pipette.style.top = "60px";
+
+        // C. Bắt đầu nhỏ giọt sau khi Pipette đã vào vị trí (0.8s)
+        setTimeout(() => {
+            let dropCount = 0;
+            const maxDrops = 5; // Số lượng giọt sẽ nhỏ
+            
+            const dropInterval = setInterval(() => {
+                createDrop(pipetteColor); // Tạo giọt nước
+                dropCount++;
+                
+                if (dropCount >= maxDrops) {
+                    clearInterval(dropInterval);
+                    
+                    // D. Cập nhật trạng thái cuối cùng của ống nghiệm
+                    liquid.style.height = targetHeight;
+                    liquid.style.backgroundColor = tubeColor;
+
+                    // E. Thu Pipette về sau khi nhỏ xong
+                    setTimeout(() => {
+                        pipette.style.top = "-250px";
+                        if(callback) callback(); // Gọi hàm tiếp theo nếu có
+                    }, 800);
+                }
+            }, 300); // Khoảng cách thời gian giữa các giọt (ms)
+
+            // Mẹo: Set chiều cao ngay khi bắt đầu nhỏ để transition CSS chạy mượt đồng thời với giọt nước
+            liquid.style.height = targetHeight;
+            
+        }, 800); 
+    }
+
+    // Hàm tạo phần tử giọt nước
+    function createDrop(color) {
+        const d = document.createElement('div');
+        d.className = 'drop drop-animation';
+        d.style.backgroundColor = color;
+        dropZone.appendChild(d);
+        
+        // Xóa element khỏi DOM sau khi animation kết thúc để tối ưu bộ nhớ
+        setTimeout(() => d.remove(), 600); 
+    }
+
+    // --- 3. CÁC BƯỚC THÍ NGHIỆM CHÍNH ---
+
+    // BƯỚC 1a: Nhỏ NaOH
+    function runStep1a() {
+        btn1a.disabled = true; // Khóa nút
+        statusText.textContent = "Đang nhỏ 5ml NaOH loãng...";
+        
+        // NaOH gần như trong suốt
+        const pipetColor = "rgba(236, 240, 241, 0.9)"; 
+        const tubeResultColor = "var(--chem-naoh)";
+        
+        usePipette(pipetColor, "30%", tubeResultColor, () => {
+            statusText.textContent = "Đã có môi trường kiềm (NaOH). Tiếp tục thêm Albumin.";
+            setStepActive('1b');
+            btn1b.disabled = false; // Mở khóa bước tiếp theo
+        });
+    }
+
+    // BƯỚC 1b: Nhỏ Albumin
+    function runStep1b() {
+        btn1b.disabled = true;
+        statusText.textContent = "Đang nhỏ Albumin 1%...";
+        
+        // Albumin trắng đục
+        const pipetColor = "#ecf0f1";
+        // Kết quả: Dung dịch trong ống trở nên đục hơn
+        const tubeResultColor = "var(--chem-mix-1)";
+        
+        usePipette(pipetColor, "50%", tubeResultColor, () => {
+            statusText.textContent = "Hoàn thành Bước 1: Dung dịch kiềm chứa Protein.";
+            setStepActive('2');
+            btn2.disabled = false;
+        });
+    }
+
+    // BƯỚC 2: Nhỏ CuSO4
+    function runStep2() {
+        btn2.disabled = true;
+        statusText.textContent = "Đang nhỏ CuSO₄ 1%...";
+        
+        // CuSO4 màu xanh lam
+        const pipetColor = "#3498db";
+        // Mới nhỏ vào sẽ có màu xanh
+        const tubeResultColor = "var(--chem-cuso4)";
+        
+        usePipette(pipetColor, "75%", tubeResultColor, () => {
+            statusText.textContent = "Đã thêm CuSO₄. Đang chờ phản ứng xảy ra...";
+            setStepActive('3');
+            
+            // Tự động kích hoạt phản ứng hóa học sau 1.5 giây
+            setTimeout(runReaction, 1500);
+        });
+    }
+
+    // BƯỚC 3: Phản ứng (Tự động)
+    function runReaction() {
+        statusText.textContent = "Đang xảy ra phản ứng Biuret...";
+        statusText.style.borderColor = "#9b59b6"; // Đổi màu viền thông báo
+        
+        // Đổi màu dung dịch sang Tím (Biuret reaction)
+        liquid.style.backgroundColor = "var(--chem-final)";
+        
+        setTimeout(() => {
+            statusText.textContent = "Kết quả: Dung dịch chuyển sang màu tím đặc trưng.";
+        }, 2000);
+    }
+
+    // HÀM RESET (Làm lại)
+    function resetExp() {
+        // Đưa mực nước về 0
+        liquid.style.height = "0%";
+        liquid.style.backgroundColor = "var(--chem-naoh)";
+        
+        // Reset thông báo
+        statusText.textContent = "Sẵn sàng thí nghiệm";
+        statusText.style.borderColor = "rgba(255,255,255,0.2)";
+        
+        // Thu pipet (nếu đang kẹt)
+        pipette.style.top = "-250px";
+        
+        // Reset highlight bước
+        setStepActive('1a');
+        
+        // Reset nút bấm
+        btn1a.disabled = false;
+        btn1b.disabled = true;
+        btn2.disabled = true;
+    }
+
+</script>
+
+</body>
+</html>
